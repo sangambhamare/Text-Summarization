@@ -2,10 +2,9 @@ import streamlit as st
 from transformers import pipeline
 import PyPDF2
 from docx import Document
-import io
 
 st.title("Document Summarizer")
-st.write("Upload a PDF, DOCX, or TXT file, or input text directly below.")
+st.write("Upload a PDF, DOCX, or TXT file, or enter text directly below.")
 
 # Cache the summarizer to speed up subsequent runs.
 @st.cache_resource(show_spinner=False)
@@ -53,15 +52,13 @@ def extract_text_from_file(uploaded_file):
         st.error("Unsupported file format. Please upload a PDF, DOCX, or TXT file.")
     return text
 
-# Sidebar: Choose input type
-input_type = st.sidebar.radio("Select Input Type", ("Upload File", "Direct Text Input"))
+# Input type selection on the main screen
+input_type = st.radio("Select Input Type:", ("Upload File", "Direct Text Input"))
 
 if input_type == "Upload File":
     uploaded_file = st.file_uploader("Upload a file", type=["pdf", "docx", "txt"])
     if uploaded_file is not None:
         text = extract_text_from_file(uploaded_file)
-        st.subheader("Extracted Text")
-        st.text_area("Text", text, height=300)
     else:
         text = ""
 else:
@@ -77,47 +74,45 @@ if st.button("Summarize"):
         
         chunk_summaries = []
         for i, chunk in enumerate(chunks):
-            st.write(f"**Processing chunk {i+1} of {len(chunks)}:**")
+            st.write(f"**Processing chunk {i+1} of {len(chunks)}...**")
             # For the last chunk, preserve all remaining tokens.
             if i == len(chunks) - 1:
-                # Get token count using the summarizer's tokenizer
                 tokens = summarizer.tokenizer(chunk, return_tensors="pt", truncation=False).input_ids[0]
                 input_token_length = len(tokens)
-                st.write(f"Last chunk token count: {input_token_length}")
-                
-                # If the last chunk is short, use it as is; otherwise, customize summarization.
                 if input_token_length < 130:
                     chunk_summary = chunk
-                    st.write("Last chunk is short; using original text without summarization.")
                 else:
-                    summary = summarizer(chunk,
-                                         max_length=input_token_length,
-                                         min_length=30,
-                                         do_sample=False,
-                                         truncation=False)
+                    summary = summarizer(
+                        chunk,
+                        max_length=input_token_length,
+                        min_length=30,
+                        do_sample=False,
+                        truncation=False
+                    )
                     chunk_summary = summary[0]['summary_text']
-                    st.write("Last chunk summarized with custom max_length equal to input token count.")
             else:
-                summary = summarizer(chunk,
-                                     max_length=130,
-                                     min_length=30,
-                                     do_sample=False,
-                                     truncation=True)
+                summary = summarizer(
+                    chunk,
+                    max_length=130,
+                    min_length=30,
+                    do_sample=False,
+                    truncation=True
+                )
                 chunk_summary = summary[0]['summary_text']
-            
             chunk_summaries.append(chunk_summary)
-            st.write(f"**Chunk {i+1} Summary:**")
-            st.write(chunk_summary)
-            st.write("---")
         
         # Combine all chunk summaries into one text
         combined_summary_text = " ".join(chunk_summaries)
-        st.write("**Generating final consolidated summary...**")
-        final_summary = summarizer(combined_summary_text,
-                                   max_length=130,
-                                   min_length=30,
-                                   do_sample=False,
-                                   truncation=True)
+        final_summary = summarizer(
+            combined_summary_text,
+            max_length=130,
+            min_length=30,
+            do_sample=False,
+            truncation=True
+        )
         
         st.subheader("Final Summary")
         st.write(final_summary[0]['summary_text'])
+        
+        st.markdown("---")
+        st.markdown("Developed by Sangam Sanjay Bhamare 2025")
