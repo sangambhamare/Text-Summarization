@@ -1,6 +1,6 @@
 # Document Summarizer
 
-[Live Demo](https://text-summarization-6zhc3zpt83i9z6ivib9crj.streamlit.app/)
+[Click here for Live Demo](https://text-summarization-6zhc3zpt83i9z6ivib9crj.streamlit.app/)
 
 Document Summarizer is a Streamlit-based web application that uses Facebook's BART model (`facebook/bart-large-cnn`) for summarizing documents. It supports PDF, DOCX, and TXT file formats, as well as direct text input. The app automatically breaks long documents into manageable chunks, summarizes each chunk, and produces one final consolidated summary. It also displays the word counts of the original document and the final summary to highlight the reduction in text.
 
