@@ -68,6 +68,10 @@ if st.button("Summarize"):
     if not text.strip():
         st.error("No text provided for summarization!")
     else:
+        # Display original document word count.
+        original_word_count = len(text.split())
+        st.write(f"**Original Document Word Count:** {original_word_count}")
+        
         # Split the text into manageable chunks
         chunks = chunk_text(text, max_words=500)
         st.write(f"Total chunks to summarize: {len(chunks)}")
@@ -110,9 +114,13 @@ if st.button("Summarize"):
             do_sample=False,
             truncation=True
         )
+        final_summary_text = final_summary[0]['summary_text']
         
+        # Display final summary and its word count.
         st.subheader("Final Summary")
-        st.write(final_summary[0]['summary_text'])
+        st.write(final_summary_text)
+        final_word_count = len(final_summary_text.split())
+        st.write(f"**Final Summary Word Count:** {final_word_count}")
         
         st.markdown("---")
         st.markdown("Developed by Sangam Sanjay Bhamare 2025")
