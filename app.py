@@ -6,9 +6,9 @@ from docx import Document
 # ------------------------------------------------------------
 # App Title & Description
 # ------------------------------------------------------------
-st.set_page_config(page_title="Document Summarizer", page_icon=None, layout="centered")
+st.set_page_config(page_title="Document Summarizer", page_icon="📝", layout="centered")
 
-st.title("Document Summarizer")
+st.title("🧠 Document Summarizer")
 st.write("Upload a PDF, DOCX, or TXT file — or enter text directly to get a concise summary.")
 
 # ------------------------------------------------------------
@@ -58,41 +58,41 @@ def extract_text_from_file(uploaded_file):
         text = uploaded_file.read().decode("utf-8")
 
     else:
-        st.error("Unsupported file format. Please upload a PDF, DOCX, or TXT file.")
+        st.error("❌ Unsupported file format. Please upload a PDF, DOCX, or TXT file.")
 
     return text.strip()
 
 # ------------------------------------------------------------
 # Input Section
 # ------------------------------------------------------------
-input_type = st.radio("Select Input Type:", ("Upload File", "Direct Text Input"))
+input_type = st.radio("Select Input Type:", ("📁 Upload File", "✏️ Direct Text Input"))
 
 text = ""
 
-if input_type == "Upload File":
+if input_type == "📁 Upload File":
     uploaded_file = st.file_uploader("Upload a file", type=["pdf", "docx", "txt"])
     if uploaded_file:
         text = extract_text_from_file(uploaded_file)
         if text:
-            st.success("Text extracted successfully.")
+            st.success("✅ Text extracted successfully!")
         else:
-            st.warning("No readable text found in the document.")
+            st.warning("⚠️ No readable text found in the document.")
 else:
     text = st.text_area("Enter your text here:", height=250)
 
 # ------------------------------------------------------------
 # Summarization Section
 # ------------------------------------------------------------
-if st.button("Summarize"):
+if st.button("✨ Summarize"):
     if not text.strip():
-        st.error("Please provide text or upload a valid file first.")
+        st.error("⚠️ Please provide text or upload a valid file first.")
     else:
         original_word_count = len(text.split())
-        st.write(f"Original Document Word Count: {original_word_count}")
+        st.write(f"**Original Document Word Count:** {original_word_count}")
 
         # Split into manageable chunks
         chunks = chunk_text(text, max_words=500)
-        st.write(f"Total Chunks: {len(chunks)}")
+        st.write(f"**Total Chunks:** {len(chunks)}")
 
         chunk_summaries = []
         for i, chunk in enumerate(chunks):
@@ -137,18 +137,18 @@ if st.button("Summarize"):
         # ------------------------------------------------------------
         # Display Results
         # ------------------------------------------------------------
-        st.subheader("Final Summary")
+        st.subheader("🧾 Final Summary")
         st.write(final_summary_text)
 
         final_word_count = len(final_summary_text.split())
-        st.write(f"Final Summary Word Count: {final_word_count}")
+        st.write(f"**Final Summary Word Count:** {final_word_count}")
 
         st.download_button(
-            label="Download Summary as TXT",
+            label="📥 Download Summary as TXT",
             data=final_summary_text,
             file_name="summary.txt",
             mime="text/plain"
         )
 
         st.markdown("---")
-        st.caption("Developed by Sangam Sanjay Bhamare • 2025")
+        st.caption("Developed by **Sangam Sanjay Bhamare • 2025** 🚀")
