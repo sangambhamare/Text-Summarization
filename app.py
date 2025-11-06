@@ -6,25 +6,25 @@ from docx import Document
 # ------------------------------------------------------------
 # App Title & Description
 # ------------------------------------------------------------
-st.set_page_config(page_title="Document Summarizer", page_icon="📝", layout="centered")
-
-st.title("🧠 Document Summarizer")
-st.write("Upload a PDF, DOCX, or TXT file — or enter text directly to get a concise summary.")
+st.set_page_config(page_title="Multilingual Document Summarizer", layout="centered")
+st.title("Document Summarizer (English + Indian Languages)")
+st.write("Upload a PDF, DOCX, or TXT file — or enter text directly. Works for English, Hindi, Marathi, and other Indian languages.")
 
 # ------------------------------------------------------------
 # Load Summarization Model (cached)
 # ------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_summarizer():
-    return pipeline("summarization", model="facebook/bart-large-cnn", device=-1)
+    # Multilingual model trained on 45+ languages including Indian ones
+    return pipeline("summarization", model="csebuetnlp/mT5_multilingual_XLSum", tokenizer="csebuetnlp/mT5_multilingual_XLSum", device=-1)
 
 summarizer = load_summarizer()
 
 # ------------------------------------------------------------
 # Helper Functions
 # ------------------------------------------------------------
-def chunk_text(text, max_words=500):
-    """Split large text into chunks of roughly max_words words."""
+def chunk_text(text, max_words=400):
+    """Split text into chunks of roughly max_words words."""
     words = text.split()
     chunks, current_chunk = [], []
     for word in words:
@@ -38,7 +38,7 @@ def chunk_text(text, max_words=500):
 
 
 def extract_text_from_file(uploaded_file):
-    """Extract text from uploaded PDF, DOCX, or TXT files."""
+    """Extract text from PDF, DOCX, or TXT files."""
     text = ""
     filename = uploaded_file.name.lower()
 
@@ -58,97 +58,62 @@ def extract_text_from_file(uploaded_file):
         text = uploaded_file.read().decode("utf-8")
 
     else:
-        st.error("❌ Unsupported file format. Please upload a PDF, DOCX, or TXT file.")
-
+        st.error("Unsupported file format. Please upload a PDF, DOCX, or TXT file.")
     return text.strip()
 
 # ------------------------------------------------------------
 # Input Section
 # ------------------------------------------------------------
-input_type = st.radio("Select Input Type:", ("📁 Upload File", "✏️ Direct Text Input"))
+input_type = st.radio("Select Input Type:", ("Upload File", "Direct Text Input"))
 
 text = ""
 
-if input_type == "📁 Upload File":
+if input_type == "Upload File":
     uploaded_file = st.file_uploader("Upload a file", type=["pdf", "docx", "txt"])
     if uploaded_file:
         text = extract_text_from_file(uploaded_file)
         if text:
-            st.success("✅ Text extracted successfully!")
+            st.success("Text extracted successfully.")
         else:
-            st.warning("⚠️ No readable text found in the document.")
+            st.warning("No readable text found in the document.")
 else:
-    text = st.text_area("Enter your text here:", height=250)
+    text = st.text_area("Enter your text here:", height=250, placeholder="Type or paste text in English, Hindi, Marathi, etc.")
 
 # ------------------------------------------------------------
 # Summarization Section
 # ------------------------------------------------------------
-if st.button("✨ Summarize"):
+if st.button("Summarize"):
     if not text.strip():
-        st.error("⚠️ Please provide text or upload a valid file first.")
+        st.error("Please provide text or upload a valid file first.")
     else:
         original_word_count = len(text.split())
-        st.write(f"**Original Document Word Count:** {original_word_count}")
+        st.write(f"Original Document Word Count: {original_word_count}")
 
-        # Split into manageable chunks
-        chunks = chunk_text(text, max_words=500)
-        st.write(f"**Total Chunks:** {len(chunks)}")
+        chunks = chunk_text(text)
+        st.write(f"Total Chunks: {len(chunks)}")
 
         chunk_summaries = []
         for i, chunk in enumerate(chunks):
             st.info(f"Summarizing chunk {i+1} of {len(chunks)}...")
-            if i == len(chunks) - 1:
-                tokens = summarizer.tokenizer(chunk, return_tensors="pt", truncation=False).input_ids[0]
-                input_token_length = len(tokens)
-                if input_token_length < 130:
-                    chunk_summary = chunk
-                else:
-                    summary = summarizer(
-                        chunk,
-                        max_length=input_token_length,
-                        min_length=30,
-                        do_sample=False,
-                        truncation=False
-                    )
-                    chunk_summary = summary[0]['summary_text']
-            else:
-                summary = summarizer(
-                    chunk,
-                    max_length=130,
-                    min_length=30,
-                    do_sample=False,
-                    truncation=True
-                )
-                chunk_summary = summary[0]['summary_text']
+            try:
+                summary = summarizer(chunk, max_length=128, min_length=30, do_sample=False)
+                chunk_summaries.append(summary[0]['summary_text'])
+            except Exception as e:
+                st.warning(f"Chunk {i+1} failed: {e}")
 
-            chunk_summaries.append(chunk_summary)
-
-        # Combine all chunk summaries
         combined_summary_text = " ".join(chunk_summaries)
-        final_summary = summarizer(
-            combined_summary_text,
-            max_length=130,
-            min_length=30,
-            do_sample=False,
-            truncation=True
-        )
-        final_summary_text = final_summary[0]['summary_text']
+        st.subheader("Final Summary")
+        st.write(combined_summary_text)
 
-        # ------------------------------------------------------------
-        # Display Results
-        # ------------------------------------------------------------
-        st.subheader("🧾 Final Summary")
-        st.write(final_summary_text)
-
-        final_word_count = len(final_summary_text.split())
-        st.write(f"**Final Summary Word Count:** {final_word_count}")
+        final_word_count = len(combined_summary_text.split())
+        st.write(f"Final Summary Word Count: {final_word_count}")
 
         st.download_button(
-            label="📥 Download Summary as TXT",
-            data=final_summary_text,
+            label="Download Summary as TXT",
+            data=combined_summary_text,
             file_name="summary.txt",
             mime="text/plain"
         )
 
         st.markdown("---")
-        st.caption("Developed by **Sangam Sanjay Bhamare • 2025** 🚀")
+        st.caption("Developed by Sangam Sanjay Bhamare, 2025")
