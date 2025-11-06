@@ -3,23 +3,30 @@ from transformers import pipeline
 import PyPDF2
 from docx import Document
 
-st.title("Document Summarizer")
-st.write("Upload a PDF, DOCX, or TXT file, or enter text directly below.")
+# ------------------------------------------------------------
+# App Title & Description
+# ------------------------------------------------------------
+st.set_page_config(page_title="Document Summarizer", page_icon=None, layout="centered")
 
-# Cache the summarizer to speed up subsequent runs.
+st.title("Document Summarizer")
+st.write("Upload a PDF, DOCX, or TXT file — or enter text directly to get a concise summary.")
+
+# ------------------------------------------------------------
+# Load Summarization Model (cached)
+# ------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_summarizer():
     return pipeline("summarization", model="facebook/bart-large-cnn", device=-1)
 
 summarizer = load_summarizer()
 
+# ------------------------------------------------------------
+# Helper Functions
+# ------------------------------------------------------------
 def chunk_text(text, max_words=500):
-    """
-    Splits the text into chunks of roughly max_words words.
-    """
+    """Split large text into chunks of roughly max_words words."""
     words = text.split()
-    chunks = []
-    current_chunk = []
+    chunks, current_chunk = [], []
     for word in words:
         current_chunk.append(word)
         if len(current_chunk) >= max_words:
@@ -29,57 +36,67 @@ def chunk_text(text, max_words=500):
         chunks.append(" ".join(current_chunk))
     return chunks
 
+
 def extract_text_from_file(uploaded_file):
-    """
-    Extracts text from an uploaded file.
-    Supports PDF, DOCX, and TXT files.
-    """
+    """Extract text from uploaded PDF, DOCX, or TXT files."""
     text = ""
-    filename = uploaded_file.name
+    filename = uploaded_file.name.lower()
+
     if filename.endswith(".pdf"):
         pdf_reader = PyPDF2.PdfReader(uploaded_file)
         for page in pdf_reader.pages:
             page_text = page.extract_text()
             if page_text:
                 text += page_text + "\n"
+
     elif filename.endswith(".docx"):
         document = Document(uploaded_file)
         for para in document.paragraphs:
             text += para.text + "\n"
+
     elif filename.endswith(".txt"):
         text = uploaded_file.read().decode("utf-8")
+
     else:
         st.error("Unsupported file format. Please upload a PDF, DOCX, or TXT file.")
-    return text
 
-# Input type selection on the main screen
+    return text.strip()
+
+# ------------------------------------------------------------
+# Input Section
+# ------------------------------------------------------------
 input_type = st.radio("Select Input Type:", ("Upload File", "Direct Text Input"))
+
+text = ""
 
 if input_type == "Upload File":
     uploaded_file = st.file_uploader("Upload a file", type=["pdf", "docx", "txt"])
-    if uploaded_file is not None:
+    if uploaded_file:
         text = extract_text_from_file(uploaded_file)
-    else:
-        text = ""
+        if text:
+            st.success("Text extracted successfully.")
+        else:
+            st.warning("No readable text found in the document.")
 else:
-    text = st.text_area("Enter Text", height=300)
+    text = st.text_area("Enter your text here:", height=250)
 
+# ------------------------------------------------------------
+# Summarization Section
+# ------------------------------------------------------------
 if st.button("Summarize"):
     if not text.strip():
-        st.error("No text provided for summarization!")
+        st.error("Please provide text or upload a valid file first.")
     else:
-        # Display original document word count.
         original_word_count = len(text.split())
-        st.write(f"**Original Document Word Count:** {original_word_count}")
-        
-        # Split the text into manageable chunks
+        st.write(f"Original Document Word Count: {original_word_count}")
+
+        # Split into manageable chunks
         chunks = chunk_text(text, max_words=500)
-        st.write(f"Total chunks to summarize: {len(chunks)}")
-        
+        st.write(f"Total Chunks: {len(chunks)}")
+
         chunk_summaries = []
         for i, chunk in enumerate(chunks):
-            st.write(f"**Processing chunk {i+1} of {len(chunks)}...**")
-            # For the last chunk, preserve all remaining tokens.
+            st.info(f"Summarizing chunk {i+1} of {len(chunks)}...")
             if i == len(chunks) - 1:
                 tokens = summarizer.tokenizer(chunk, return_tensors="pt", truncation=False).input_ids[0]
                 input_token_length = len(tokens)
@@ -103,9 +120,10 @@ if st.button("Summarize"):
                     truncation=True
                 )
                 chunk_summary = summary[0]['summary_text']
+
             chunk_summaries.append(chunk_summary)
-        
-        # Combine all chunk summaries into one text
+
+        # Combine all chunk summaries
         combined_summary_text = " ".join(chunk_summaries)
         final_summary = summarizer(
             combined_summary_text,
@@ -115,12 +133,22 @@ if st.button("Summarize"):
             truncation=True
         )
         final_summary_text = final_summary[0]['summary_text']
-        
-        # Display final summary and its word count.
+
+        # ------------------------------------------------------------
+        # Display Results
+        # ------------------------------------------------------------
         st.subheader("Final Summary")
         st.write(final_summary_text)
+
         final_word_count = len(final_summary_text.split())
-        st.write(f"**Final Summary Word Count:** {final_word_count}")
-        
+        st.write(f"Final Summary Word Count: {final_word_count}")
+
+        st.download_button(
+            label="Download Summary as TXT",
+            data=final_summary_text,
+            file_name="summary.txt",
+            mime="text/plain"
+        )
+
         st.markdown("---")
-        st.markdown("Developed by Sangam Sanjay Bhamare 2025")
+        st.caption("Developed by Sangam Sanjay Bhamare • 2025")
