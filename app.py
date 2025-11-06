@@ -1,30 +1,22 @@
 import streamlit as st
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import PyPDF2
 from docx import Document
 
-# ------------------------------------------------------------
-# App Title & Description
-# ------------------------------------------------------------
 st.set_page_config(page_title="Multilingual Document Summarizer", layout="centered")
 st.title("Document Summarizer (English + Indian Languages)")
 st.write("Upload a PDF, DOCX, or TXT file — or enter text directly. Works for English, Hindi, Marathi, and other Indian languages.")
 
-# ------------------------------------------------------------
-# Load Summarization Model (cached)
-# ------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_summarizer():
-    # Multilingual model trained on 45+ languages including Indian ones
-    return pipeline("summarization", model="csebuetnlp/mT5_multilingual_XLSum", tokenizer="csebuetnlp/mT5_multilingual_XLSum", device=-1)
+    model_name = "csebuetnlp/mT5_multilingual_XLSum"
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    return pipeline("summarization", model=model, tokenizer=tokenizer)
 
 summarizer = load_summarizer()
 
-# ------------------------------------------------------------
-# Helper Functions
-# ------------------------------------------------------------
 def chunk_text(text, max_words=400):
-    """Split text into chunks of roughly max_words words."""
     words = text.split()
     chunks, current_chunk = [], []
     for word in words:
@@ -36,38 +28,28 @@ def chunk_text(text, max_words=400):
         chunks.append(" ".join(current_chunk))
     return chunks
 
-
 def extract_text_from_file(uploaded_file):
-    """Extract text from PDF, DOCX, or TXT files."""
     text = ""
     filename = uploaded_file.name.lower()
-
     if filename.endswith(".pdf"):
         pdf_reader = PyPDF2.PdfReader(uploaded_file)
         for page in pdf_reader.pages:
             page_text = page.extract_text()
             if page_text:
                 text += page_text + "\n"
-
     elif filename.endswith(".docx"):
         document = Document(uploaded_file)
         for para in document.paragraphs:
             text += para.text + "\n"
-
     elif filename.endswith(".txt"):
         text = uploaded_file.read().decode("utf-8")
-
     else:
         st.error("Unsupported file format. Please upload a PDF, DOCX, or TXT file.")
     return text.strip()
 
-# ------------------------------------------------------------
-# Input Section
-# ------------------------------------------------------------
 input_type = st.radio("Select Input Type:", ("Upload File", "Direct Text Input"))
 
 text = ""
-
 if input_type == "Upload File":
     uploaded_file = st.file_uploader("Upload a file", type=["pdf", "docx", "txt"])
     if uploaded_file:
@@ -79,9 +61,6 @@ if input_type == "Upload File":
 else:
     text = st.text_area("Enter your text here:", height=250, placeholder="Type or paste text in English, Hindi, Marathi, etc.")
 
-# ------------------------------------------------------------
-# Summarization Section
-# ------------------------------------------------------------
 if st.button("Summarize"):
     if not text.strip():
         st.error("Please provide text or upload a valid file first.")
